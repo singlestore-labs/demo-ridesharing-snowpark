@@ -1,8 +1,11 @@
 export const MAPBOX_TOKEN =
   import.meta.env.VITE_MAPBOX_TOKEN ||
   "pk.eyJ1IjoiYmhhcmF0MTAzMSIsImEiOiJja3JtbGM0eTM3dXZnMnZtZjFudW5rbGF0In0.tt92RoFtBcmGqoQOchCoag";
-export const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+
+export const BACKEND_URL = (() => {
+  const currentUrl = new URL(window.location.href);
+  return `${currentUrl.protocol}//${currentUrl.host}/api`;
+})();
 
 export const SINGLESTORE_PURPLE_500 = "#D199FF";
 export const SINGLESTORE_PURPLE_700 = "#820DDF";
