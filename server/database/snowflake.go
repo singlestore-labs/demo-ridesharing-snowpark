@@ -28,22 +28,31 @@ func connectSnowflake() {
 	if err != nil {
 		log.Printf("Failed to create DSN: %v", err)
 	}
-	// Connect to Snowflake
-	SnowflakeDB, err = sql.Open("snowflake", dsn)
-	if err != nil {
-		log.Printf("Failed to connect to Snowflake: %v", err)
+	const maxRetries = 5
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		// Connect to Snowflake
+		SnowflakeDB, err = sql.Open("snowflake", dsn)
+		if err == nil {
+			// Test the connection
+			err = SnowflakeDB.Ping()
+			if err == nil {
+				// Set the session timezone to UTC
+				_, err = SnowflakeDB.Exec("ALTER SESSION SET TIMEZONE = 'UTC'")
+				if err == nil {
+					log.Printf("Successfully connected to Snowflake on attempt %d", attempt)
+					return
+				}
+			}
+		}
+
+		log.Printf("Attempt %d failed: %v", attempt, err)
+		if attempt < maxRetries {
+			log.Println("Retrying...")
+		}
 	}
-	// Test the connection
-	err = SnowflakeDB.Ping()
-	if err != nil {
-		log.Printf("Failed to ping Snowflake: %v", err)
-	}
-	// Set the session timezone to UTC
-	_, err = SnowflakeDB.Exec("ALTER SESSION SET TIMEZONE = 'UTC'")
-	if err != nil {
-		log.Printf("Failed to set session timezone: %v", err)
-	}
-	log.Println("Successfully connected to Snowflake")
+
+	log.Printf("Failed to connect to Snowflake after %d attempts", maxRetries)
 }
 
 func SetupSnowflakeQuery() {

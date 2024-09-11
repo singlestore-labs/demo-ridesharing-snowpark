@@ -1,33 +1,5 @@
 #!/bin/bash
 
-# export repo_url=souqodv-snowflake-integration.registry.snowflakecomputing.com/rideshare_demo/public/rideshare_demo_repository
-# export tag=spcs
-# export image_name=ridesharing_server
-# docker image rm ${image_name}:${tag}
-# docker build --rm --platform linux/amd64 -t ${image_name}:${tag} --progress=plain -f server/Dockerfile server
-# docker image rm ${repo_url}/${image_name}:${tag}
-# docker tag ${image_name}:${tag} ${repo_url}/${image_name}:${tag}
-# docker push ${repo_url}/${image_name}:${tag}
-# echo ${repo_url}/${image_name}:${tag}
-
-# export tag=spcs
-# export image_name=ridesharing_web
-# docker image rm ${image_name}:${tag}
-# docker build --rm --platform linux/amd64 -t ${image_name}:${tag} --progress=plain -f web/Dockerfile web
-# docker image rm ${repo_url}/${image_name}:${tag}
-# docker tag ${image_name}:${tag} ${repo_url}/${image_name}:${tag}
-# docker push ${repo_url}/${image_name}:${tag}
-# echo ${repo_url}/${image_name}:${tag}
-
-# export tag=spcs
-# export image_name=ridesharing_proxy
-# docker image rm ${image_name}:${tag}
-# docker build --rm --platform linux/amd64 -t ${image_name}:${tag} --progress=plain .
-# docker image rm ${repo_url}/${image_name}:${tag}
-# docker tag ${image_name}:${tag} ${repo_url}/${image_name}:${tag}
-# docker push ${repo_url}/${image_name}:${tag}
-# echo ${repo_url}/${image_name}:${tag}
-
 set -e
 
 export repo_url=souqodv-snowflake-integration.registry.snowflakecomputing.com/rideshare_demo/public/rideshare_demo_repository

@@ -7,8 +7,6 @@ RUN npm ci
 
 COPY . .
 
-ENV VITE_BACKEND_URL="http://localhost:8000"
-
 RUN npm run build
 
 FROM nginx:1.25.2-alpine
