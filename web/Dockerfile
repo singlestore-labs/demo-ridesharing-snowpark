@@ -1,11 +1,14 @@
-FROM node:22-alpine3.19 as build
+FROM --platform=$BUILDPLATFORM node:18-alpine AS build
 
 WORKDIR /app
-COPY . /app
+COPY package*.json ./
+
+RUN npm ci
+
+COPY . .
 
 ENV VITE_BACKEND_URL="http://localhost:8000"
 
-RUN npm install
 RUN npm run build
 
 FROM nginx:1.25.2-alpine

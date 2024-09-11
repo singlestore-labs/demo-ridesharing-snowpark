@@ -1,0 +1,25 @@
+spec:
+  container:
+    - name: proxy
+      image: /rideshare_demo/public/rideshare_demo_repository/ridesharing_proxy:spcs
+    - name: web
+      image: /rideshare_demo/public/rideshare_demo_repository/ridesharing_web:spcs
+    - name: backend
+      image: /rideshare_demo/public/rideshare_demo_repository/ridesharing_server:spcs
+      env:
+        PORT: 8000
+        SINGLESTORE_HOST: svc-7d75ca76-d293-40c2-baa0-df5106d9a80f-dml.aws-virginia-5.svc.singlestore.com
+        SINGLESTORE_PORT: 3306
+        SINGLESTORE_USERNAME: admin
+        SINGLESTORE_PASSWORD: ubXMJaXuX3ezTsU8yrzz6rVmUJrViqgZ
+        SINGLESTORE_DATABASE: rideshare_demo
+        SNOWFLAKE_ACCOUNT: SOUQODV-SNOWFLAKE_INTEGRATION
+        SNOWFLAKE_USER: RIDESHARE_INGEST
+        SNOWFLAKE_PASSWORD: RIDESHARE_INGEST
+        SNOWFLAKE_WAREHOUSE: RIDESHARE_INGEST
+        SNOWFLAKE_DATABASE: RIDESHARE_DEMO
+        SNOWFLAKE_SCHEMA: PUBLIC
+  endpoint:
+    - name: proxyendpoint
+      port: 9000
+      public: true
