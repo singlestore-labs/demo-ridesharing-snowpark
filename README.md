@@ -15,9 +15,9 @@ Ride-sharing apps such as Uber and Lyft generate massive amounts of data every d
 This demos builds upon the [previous ridesharing demo](https://github.com/singlestore-labs/demo-ridesharing-sim), showcasing how SingleStore's Native App inside Snowpark Container Services (SPCS) can be used to power real-time analytics on your data without it ever leaving your Snowflake environment.
 
 Just like before, this demo consists of three main components:
-- [Simulator](#simulator)
-- [API Server](#api-server)
-- [React Dashboard](#react-dashboard)
+- [Simulator](https://github.com/singlestore-labs/demo-ridesharing-sim?tab=readme-ov-file#simulator)
+- [API Server](https://github.com/singlestore-labs/demo-ridesharing-sim?tab=readme-ov-file#api-server)
+- [React Dashboard](https://github.com/singlestore-labs/demo-ridesharing-sim?tab=readme-ov-file#react-dashboard)
 
 Our simulator generates realistic ride-sharing trip data and streams it to a Kafka topic. Using the Snowflake Kafka Connector, this data is then ingested into Snowflake tables. An API Server queries this data and exposes it through a RESTful interface. Finally, a React Dashboard consumes this API to provide dynamic visualizations of rider, driver, and trip information.
 
