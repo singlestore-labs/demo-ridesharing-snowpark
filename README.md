@@ -1,8 +1,14 @@
-# Ridesharing Simulation
+# Ridesharing Simulation in Snowpark
 
 **Attention**: The code in this repository is intended for experimental use only and is not fully tested, documented, or supported by SingleStore. Visit the [SingleStore Forums](https://www.singlestore.com/forum/) to ask questions about this repository.
 
 ## Overview
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="/assets/overview_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="/assets/overview_light.png">
+  <img alt="Ridesharing demo architecture" src="/assets/overview_light.png">
+</picture>
 
 Ride-sharing apps such as Uber and Lyft generate massive amounts of data every day. Being able to efficiently ingest and analyze this data is key to making crucial data-driven decisions. This demo showcases how SingleStore can be used to accelerate an existing analytics dashboard, enabling low-latency analytics on real-time data.
 
