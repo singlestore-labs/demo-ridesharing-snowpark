@@ -17,7 +17,7 @@ Our simulator generates realistic ride-sharing trip data and streams it to a Kaf
 
 One new addition is a simple proxy service that will allow our API Server to be reachable by our React application. Since Snowflake requires any requests into SPCS to be authenticated, requests to our backend needs to have the Snowflake JWT. The proxy service will help automatically add this to every request.
 
-Then we will showcase our new Snowpark Native App, allowing you to leverage SingleStore's real-time capabilities while maintaining full control of your data.
+Then we will showcase how to setup the SingleStore Snowpark Native App, allowing you to ingest your Snowflake data through Iceberg as well as connect your existing Kafka streams to feed in real-time information, all while maintaing full ownership of your data.
 
 ## Getting Started
 
