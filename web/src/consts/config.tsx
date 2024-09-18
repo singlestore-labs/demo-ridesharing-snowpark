@@ -3,6 +3,9 @@ export const MAPBOX_TOKEN =
   "pk.eyJ1IjoiYmhhcmF0MTAzMSIsImEiOiJja3JtbGM0eTM3dXZnMnZtZjFudW5rbGF0In0.tt92RoFtBcmGqoQOchCoag";
 
 export const BACKEND_URL = (() => {
+  if (import.meta.env.VITE_BACKEND_URL) {
+    return import.meta.env.VITE_BACKEND_URL;
+  }
   const currentUrl = new URL(window.location.href);
   return `${currentUrl.protocol}//${currentUrl.host}/api`;
 })();

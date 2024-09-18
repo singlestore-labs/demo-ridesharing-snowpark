@@ -19,17 +19,23 @@ import { format } from "date-fns";
 
 export default function TripsDailyChart() {
   const database = useDatabase();
+  const [databaseParam, setDatabaseParam] = useState("snowflake");
   const city = useCity();
   const [latency, setLatency] = useState(0);
   const [chartData, setChartData] = useState([]);
   const refreshInterval = useRefreshInterval();
 
+  useEffect(() => {
+    setDatabaseParam(database === "both" ? "snowflake" : database);
+  }, [database]);
+
   const getData = useCallback(async () => {
     setLatency(0);
+    const databaseParam = database === "both" ? "snowflake" : database;
     const cityParam = city === "All" ? "" : city;
     try {
       const response = await axios.get(
-        `${BACKEND_URL}/trips/last/week?db=${database}&city=${cityParam}`,
+        `${BACKEND_URL}/trips/last/week?db=${databaseParam}&city=${cityParam}`,
       );
       const latencyHeader = response.headers["x-query-latency"];
       if (latencyHeader) {
@@ -78,7 +84,7 @@ export default function TripsDailyChart() {
     trips: {
       label: "Trips",
       color:
-        database === "singlestore" ? SINGLESTORE_PURPLE_700 : SNOWFLAKE_BLUE,
+        databaseParam === "snowflake" ? SNOWFLAKE_BLUE : SINGLESTORE_PURPLE_700,
     },
   } satisfies ChartConfig;
 
@@ -86,7 +92,7 @@ export default function TripsDailyChart() {
     <Card className="h-[400px] w-[600px]">
       <div className="flex flex-row items-center justify-between p-2">
         <h4>Ride requests per day</h4>
-        <DatabaseResultLabel database={database} latency={latency} />
+        <DatabaseResultLabel database={databaseParam} latency={latency} />
       </div>
       <ChartContainer config={chartConfig} className="h-full w-full pb-10 pr-4">
         <BarChart data={chartData}>

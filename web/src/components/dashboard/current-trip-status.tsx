@@ -33,12 +33,14 @@ interface CurrentTripStatusProps {
 
 export function CurrentTripStatus({ refreshInterval }: CurrentTripStatusProps) {
   const database = useDatabase();
+  const [databaseParam, setDatabaseParam] = useState("snowflake");
   const city = useCity();
 
   const [tripStats, setTripStats] = useState<TripStats | null>(null);
   const [latency, setLatency] = useState(0);
 
   const refreshData = useCallback(() => {
+    setDatabaseParam(database === "both" ? "singlestore" : database);
     const fetchData = async () => {
       try {
         await Promise.all([getTripStats()]);
@@ -60,9 +62,10 @@ export function CurrentTripStatus({ refreshInterval }: CurrentTripStatusProps) {
 
   const getTripStats = async () => {
     setLatency(0);
+    const databaseParam = database === "both" ? "singlestore" : database;
     const cityParam = city === "All" ? "" : city;
     const response = await axios.get(
-      `${BACKEND_URL}/trips/current/status?db=${database}&city=${cityParam}`,
+      `${BACKEND_URL}/trips/current/status?db=${databaseParam}&city=${cityParam}`,
     );
     setTripStats(response.data);
     const latencyHeader = response.headers["x-query-latency"];
@@ -76,7 +79,7 @@ export function CurrentTripStatus({ refreshInterval }: CurrentTripStatusProps) {
       <div>
         <div className="flex flex-row items-center justify-between">
           <h4>Lifetime Statistics</h4>
-          <DatabaseResultLabel database={database} latency={latency} />
+          <DatabaseResultLabel database={databaseParam} latency={latency} />
         </div>
         <div className="mt-2 flex flex-col gap-4">
           <div className="flex flex-row flex-wrap gap-4">
@@ -105,7 +108,7 @@ export function CurrentTripStatus({ refreshInterval }: CurrentTripStatusProps) {
           />
           <h4>Live Ride Status</h4>
         </div>
-        <DatabaseResultLabel database={database} latency={latency} />
+        <DatabaseResultLabel database={databaseParam} latency={latency} />
       </div>
       <div className="flex flex-wrap gap-4">
         <Card className="flex flex-col items-center justify-center p-4">

@@ -1,4 +1,8 @@
-import { BACKEND_URL, SINGLESTORE_PURPLE_700 } from "@/consts/config";
+import {
+  BACKEND_URL,
+  SINGLESTORE_PURPLE_700,
+  SNOWFLAKE_BLUE,
+} from "@/consts/config";
 import { Card } from "@/components/ui/card";
 import { useCity, useDatabase, useRefreshInterval } from "@/lib/store";
 import axios from "axios";
@@ -15,18 +19,24 @@ interface TripStats {
 
 export default function TotalStatistics() {
   const database = useDatabase();
+  const [databaseParam, setDatabaseParam] = useState("snowflake");
   const city = useCity();
   const refreshInterval = useRefreshInterval();
 
   const [tripStats, setTripStats] = useState<TripStats | null>(null);
   const [latency, setLatency] = useState(0);
 
+  useEffect(() => {
+    setDatabaseParam(database === "both" ? "singlestore" : database);
+  }, [database]);
+
   const getTripStats = useCallback(async () => {
     setLatency(0);
+    const databaseParam = database === "both" ? "snowflake" : database;
     const cityParam = city === "All" ? "" : city;
     try {
       const response = await axios.get(
-        `${BACKEND_URL}/trips/statistics?db=${database}&city=${cityParam}`,
+        `${BACKEND_URL}/trips/statistics?db=${databaseParam}&city=${cityParam}`,
       );
       setTripStats(response.data);
       const latencyHeader = response.headers["x-query-latency"];
@@ -61,7 +71,7 @@ export default function TotalStatistics() {
       <div>
         <div className="flex flex-row items-center justify-between">
           <h4>Lifetime Statistics</h4>
-          <DatabaseResultLabel database={database} latency={latency} />
+          <DatabaseResultLabel database={databaseParam} latency={latency} />
         </div>
         <div className="mt-2 flex flex-col gap-4">
           <div className="flex flex-row flex-wrap gap-4">
@@ -83,7 +93,7 @@ export default function TotalStatistics() {
     <div>
       <div className="flex flex-row items-center justify-between">
         <h4>Lifetime Statistics</h4>
-        <DatabaseResultLabel database={database} latency={latency} />
+        <DatabaseResultLabel database={databaseParam} latency={latency} />
       </div>
       <div className="mt-2 flex flex-col gap-4">
         <div className="flex flex-row flex-wrap gap-4">
@@ -93,7 +103,12 @@ export default function TotalStatistics() {
             </h1>
             <p
               className="mt-2 font-medium"
-              style={{ color: SINGLESTORE_PURPLE_700 }}
+              style={{
+                color:
+                  databaseParam === "snowflake"
+                    ? SNOWFLAKE_BLUE
+                    : SINGLESTORE_PURPLE_700,
+              }}
             >
               Total Trips
             </p>
@@ -104,7 +119,12 @@ export default function TotalStatistics() {
             </h1>
             <p
               className="mt-2 font-medium"
-              style={{ color: SINGLESTORE_PURPLE_700 }}
+              style={{
+                color:
+                  databaseParam === "snowflake"
+                    ? SNOWFLAKE_BLUE
+                    : SINGLESTORE_PURPLE_700,
+              }}
             >
               Avg Distance (km)
             </p>
@@ -115,7 +135,12 @@ export default function TotalStatistics() {
             </h1>
             <p
               className="mt-2 font-medium"
-              style={{ color: SINGLESTORE_PURPLE_700 }}
+              style={{
+                color:
+                  databaseParam === "snowflake"
+                    ? SNOWFLAKE_BLUE
+                    : SINGLESTORE_PURPLE_700,
+              }}
             >
               Avg Ride Duration (s)
             </p>
@@ -126,7 +151,12 @@ export default function TotalStatistics() {
             </h1>
             <p
               className="mt-2 font-medium"
-              style={{ color: SINGLESTORE_PURPLE_700 }}
+              style={{
+                color:
+                  databaseParam === "snowflake"
+                    ? SNOWFLAKE_BLUE
+                    : SINGLESTORE_PURPLE_700,
+              }}
             >
               Avg Wait Time (s)
             </p>

@@ -17,7 +17,6 @@ import { getLatencyString } from "@/lib/utils";
 
 export default function MapLegend() {
   const database = useDatabase();
-
   const riders = useRiders();
   const drivers = useDrivers();
 
@@ -86,7 +85,7 @@ export default function MapLegend() {
             <h4>{getActiveRiderCount()} Riders</h4>
           </div>
           <DatabaseResultLabel
-            database={database}
+            database={database === "both" ? "singlestore" : database}
             latency={getRiderLatency()}
           />
         </div>
@@ -112,7 +111,7 @@ export default function MapLegend() {
             <h4>{getActiveDriverCount()} Drivers</h4>
           </div>
           <DatabaseResultLabel
-            database={database}
+            database={database === "both" ? "singlestore" : database}
             latency={getDriverLatency()}
           />
         </div>
