@@ -1,111 +1,316 @@
--- complete previous snowflake setup from https://github.com/singlestore-labs/demo-ridesharing-sim
--- you should have a database called rideshare_demo and the following tables:
--- trips, riders, drivers
+USE ROLE ACCOUNTADMIN;
+CREATE OR REPLACE WAREHOUSE RIDESHARE_INGEST;
+ALTER WAREHOUSE RIDESHARE_INGEST SET WAREHOUSE_SIZE='MEDIUM';
+CREATE OR REPLACE DATABASE RIDESHARE_DEMO;
 
--- new setup
-GRANT CREATE COMPUTE POOL ON account TO ROLE RIDESHARE_INGEST;
+ALTER SESSION SET TIMEZONE = 'UTC';
+
+CREATE OR REPLACE ROLE RIDESHARE_INGEST;
+GRANT ALL ON WAREHOUSE RIDESHARE_INGEST TO ROLE RIDESHARE_INGEST;
+GRANT EXECUTE TASK ON account TO ROLE RIDESHARE_INGEST;
+GRANT CREATE INTEGRATION ON account TO ROLE RIDESHARE_INGEST;
+GRANT CREATE EXTERNAL VOLUME ON account TO ROLE RIDESHARE_INGEST;
+GRANT OWNERSHIP ON DATABASE RIDESHARE_DEMO TO ROLE RIDESHARE_INGEST;
+GRANT OWNERSHIP ON SCHEMA RIDESHARE_DEMO.PUBLIC TO ROLE RIDESHARE_INGEST;
+
+CREATE OR REPLACE USER RIDESHARE_INGEST PASSWORD='RIDESHARE_INGEST' LOGIN_NAME='RIDESHARE_INGEST' MUST_CHANGE_PASSWORD=FALSE, DISABLED=FALSE, DEFAULT_WAREHOUSE='RIDESHARE_INGEST', DEFAULT_NAMESPACE='RIDESHARE_DEMO.PUBLIC', DEFAULT_ROLE='RIDESHARE_INGEST';
+GRANT ROLE RIDESHARE_INGEST TO USER RIDESHARE_INGEST;
+-- change to your current logged in user
+GRANT ROLE RIDESHARE_INGEST TO USER BHARAT;
+
+ALTER USER RIDESHARE_INGEST SET RSA_PUBLIC_KEY='YOUR-PUBLIC-KEY';
 
 USE ROLE RIDESHARE_INGEST;
 USE DATABASE RIDESHARE_DEMO;
 
-DROP COMPUTE POOL rideshare_demo_compute_pool;
-CREATE COMPUTE POOL rideshare_demo_compute_pool
-MIN_NODES = 1
-MAX_NODES = 1
-INSTANCE_FAMILY = CPU_X64_M;
+-- query kafka connector created tables
+SELECT * FROM RIDERS_STAGE;
+SELECT * FROM DRIVERS_STAGE;
+SELECT * FROM TRIPS_STAGE;
 
-DESC COMPUTE POOL rideshare_demo_compute_pool;
-
-GRANT ALL ON COMPUTE POOL rideshare_demo_compute_pool TO ROLE RIDESHARE_INGEST;
-
--- Setup network rule to allow external access to all http traffic and the snowflake database
-CREATE OR REPLACE NETWORK RULE RIDESHARE_DEMO_RULE
-  TYPE = 'HOST_PORT'
-  MODE = 'EGRESS'
-  VALUE_LIST= (
-    '0.0.0.0:443',
-    '0.0.0.0:80',
-    'SOUQODV-SNOWFLAKE_INTEGRATION.snowflakecomputing.com',
+-- deduplicated riders table
+CREATE OR REPLACE TABLE RIDERS (
+    ID VARCHAR(255) NOT NULL,
+    FIRST_NAME VARCHAR(255),
+    LAST_NAME VARCHAR(255),
+    EMAIL VARCHAR(255),
+    PHONE_NUMBER VARCHAR(50),
+    DATE_OF_BIRTH TIMESTAMP_NTZ(6),
+    CREATED_AT TIMESTAMP_NTZ(6),
+    LOCATION_CITY VARCHAR(255),
+    LOCATION_LAT FLOAT,
+    LOCATION_LONG FLOAT,
+    STATUS VARCHAR(50),
+    PRIMARY KEY (ID)
 );
 
--- Setup external access integration to allow access to the network rule
-CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION RIDESHARE_DEMO_EAI
-  ALLOWED_NETWORK_RULES = (RIDESHARE_DEMO_RULE)
-  ENABLED = true;
+-- Create a stream on the RIDERS_STAGE table
+CREATE OR REPLACE STREAM RIDERS_STREAM ON TABLE RIDERS_STAGE;
 
--- Allow our role to use the external access integration as well as create a service endpoint
-USE ROLE ACCOUNTADMIN;
-GRANT USAGE ON INTEGRATION RIDESHARE_DEMO_EAI TO ROLE RIDESHARE_INGEST;
-GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE RIDESHARE_INGEST;
-USE ROLE RIDESHARE_INGEST;
+-- Create a task to merge changes into the RIDERS table
+CREATE OR REPLACE TASK MERGE_RIDERS_TASK
+WAREHOUSE = RIDESHARE_INGEST
+SCHEDULE = '1 minute'
+WHEN
+  SYSTEM$STREAM_HAS_DATA('RIDERS_STREAM')
+AS
+MERGE INTO RIDESHARE_DEMO.PUBLIC.RIDERS AS target
+USING (
+  SELECT 
+    ID,
+    FIRST_NAME,
+    LAST_NAME,
+    EMAIL,
+    PHONE_NUMBER,
+    TRY_TO_TIMESTAMP_NTZ(DATE_OF_BIRTH) AS DATE_OF_BIRTH,
+    TRY_TO_TIMESTAMP_NTZ(CREATED_AT) AS CREATED_AT,
+    LOCATION_CITY,
+    LOCATION_LAT,
+    LOCATION_LONG,
+    STATUS,
+    ROW_NUMBER() OVER (PARTITION BY ID ORDER BY TRY_TO_TIMESTAMP(CREATED_AT) DESC) AS rn
+  FROM RIDERS_STREAM
+) AS source
+ON target.ID = source.ID
+WHEN MATCHED AND source.rn = 1 THEN
+  UPDATE SET
+    target.FIRST_NAME = source.FIRST_NAME,
+    target.LAST_NAME = source.LAST_NAME,
+    target.EMAIL = source.EMAIL,
+    target.PHONE_NUMBER = source.PHONE_NUMBER,
+    target.DATE_OF_BIRTH = source.DATE_OF_BIRTH,
+    target.CREATED_AT = source.CREATED_AT,
+    target.LOCATION_CITY = source.LOCATION_CITY,
+    target.LOCATION_LAT = source.LOCATION_LAT,
+    target.LOCATION_LONG = source.LOCATION_LONG,
+    target.STATUS = source.STATUS
+WHEN NOT MATCHED AND source.rn = 1 THEN
+  INSERT (ID, FIRST_NAME, LAST_NAME, EMAIL, PHONE_NUMBER, DATE_OF_BIRTH, CREATED_AT, LOCATION_CITY, LOCATION_LAT, LOCATION_LONG, STATUS)
+  VALUES (source.ID, source.FIRST_NAME, source.LAST_NAME, source.EMAIL, source.PHONE_NUMBER, source.DATE_OF_BIRTH, source.CREATED_AT, source.LOCATION_CITY, source.LOCATION_LAT, source.LOCATION_LONG, source.STATUS);
 
--- Create image repository  
-CREATE OR REPLACE IMAGE REPOSITORY rideshare_demo_repository;
-SHOW IMAGE REPOSITORIES;
--- List images in repo (can be called later to verify that images have been pushed to the repo)
-call system$registry_list_images('/rideshare_demo/public/rideshare_demo_repository');
+-- Start the task
+ALTER TASK MERGE_RIDERS_TASK RESUME;
 
--- Create our actual service
-DROP SERVICE IF EXISTS rideshare_demo_service;
-CREATE SERVICE rideshare_demo_service
-  IN COMPUTE POOL rideshare_demo_compute_pool
-  FROM SPECIFICATION $$
-spec:
-  container:
-    - name: proxy
-      image: /rideshare_demo/public/rideshare_demo_repository/ridesharing_proxy:spcs
-    - name: web
-      image: /rideshare_demo/public/rideshare_demo_repository/ridesharing_web:spcs
-    - name: backend
-      image: /rideshare_demo/public/rideshare_demo_repository/ridesharing_server:spcs
-      env:
-        PORT: 8000
-        SINGLESTORE_HOST: aggregator-node.gjhg.svc.spcs.internal
-        SINGLESTORE_PORT: 3306
-        SINGLESTORE_USERNAME: root
-        SINGLESTORE_PASSWORD: password
-        SINGLESTORE_DATABASE: rideshare_demo
-        SNOWFLAKE_ACCOUNT: SOUQODV-SNOWFLAKE_INTEGRATION
-        SNOWFLAKE_USER: RIDESHARE_INGEST
-        SNOWFLAKE_PASSWORD: RIDESHARE_INGEST
-        SNOWFLAKE_WAREHOUSE: RIDESHARE_INGEST
-        SNOWFLAKE_DATABASE: RIDESHARE_DEMO
-        SNOWFLAKE_SCHEMA: PUBLIC
-  endpoint:
-    - name: proxyendpoint
-      port: 9000
-      public: true
-$$
-  MIN_INSTANCES=1
-  MAX_INSTANCES=1
-  EXTERNAL_ACCESS_INTEGRATIONS = (RIDESHARE_DEMO_EAI)
-;
-GRANT USAGE ON SERVICE rideshare_demo_service TO ROLE RIDESHARE_INGEST;
-
--- IMPORTANT: Grant our application role access to the SingleStore database
-USE ROLE ACCOUNTADMIN;
-GRANT APPLICATION ROLE SINGLESTORE_DB_APP.APP_PUBLIC TO ROLE RIDESHARE_INGEST;
-USE ROLE RIDESHARE_INGEST;
-
--- Check the status of our service
-SELECT SYSTEM$GET_SERVICE_STATUS('rideshare_demo_service');
-CALL SYSTEM$GET_SERVICE_LOGS('rideshare_demo_service', '0', 'proxy', 250);
-CALL SYSTEM$GET_SERVICE_LOGS('rideshare_demo_service', '0', 'web', 250);
-CALL SYSTEM$GET_SERVICE_LOGS('rideshare_demo_service', '0', 'backend', 250);
-
-SHOW ENDPOINTS IN SERVICE rideshare_demo_service;
-
--- IMPORTANT: Allow the SingleStore database to access the kafka brokers
-USE ROLE ACCOUNTADMIN;
-ALTER NETWORK RULE SINGLESTORE_DB_APP_APP_DATA.CONFIGURATION.SINGLESTORE_DB_APP_ALL_ACCESS_EAI_NETWORK_RULE SET
-    VALUE_LIST= (
-        '0.0.0.0:443',
-        '0.0.0.0:80',
-        'pkc-rgm37.us-west-2.aws.confluent.cloud:9092',
-        'b0-pkc-rgm37.us-west-2.aws.confluent.cloud:9092',
-        'b1-pkc-rgm37.us-west-2.aws.confluent.cloud:9092',
-        'b2-pkc-rgm37.us-west-2.aws.confluent.cloud:9092',
-        'b3-pkc-rgm37.us-west-2.aws.confluent.cloud:9092',
-        'b4-pkc-rgm37.us-west-2.aws.confluent.cloud:9092',
-        'b5-pkc-rgm37.us-west-2.aws.confluent.cloud:9092'
+-- deduplicated drivers table
+CREATE OR REPLACE TABLE DRIVERS (
+    ID VARCHAR(255) NOT NULL,
+    FIRST_NAME VARCHAR(255),
+    LAST_NAME VARCHAR(255),
+    EMAIL VARCHAR(255),
+    PHONE_NUMBER VARCHAR(50),
+    DATE_OF_BIRTH TIMESTAMP_NTZ(6),
+    CREATED_AT TIMESTAMP_NTZ(6),
+    LOCATION_CITY VARCHAR(255),
+    LOCATION_LAT FLOAT,
+    LOCATION_LONG FLOAT,
+    STATUS VARCHAR(50),
+    PRIMARY KEY (ID)
 );
+
+-- Create a stream on the DRIVERS_STAGE table
+CREATE OR REPLACE STREAM DRIVERS_STREAM ON TABLE DRIVERS_STAGE;
+
+-- Create a task to merge changes into the DRIVERS table
+CREATE OR REPLACE TASK MERGE_DRIVERS_TASK
+WAREHOUSE = RIDESHARE_INGEST
+SCHEDULE = '1 minute'
+WHEN
+  SYSTEM$STREAM_HAS_DATA('DRIVERS_STREAM')
+AS
+MERGE INTO RIDESHARE_DEMO.PUBLIC.DRIVERS AS target
+USING (
+  SELECT 
+    ID,
+    FIRST_NAME,
+    LAST_NAME,
+    EMAIL,
+    PHONE_NUMBER,
+    TRY_TO_TIMESTAMP_NTZ(DATE_OF_BIRTH) AS DATE_OF_BIRTH,
+    TRY_TO_TIMESTAMP_NTZ(CREATED_AT) AS CREATED_AT,
+    LOCATION_CITY,
+    LOCATION_LAT,
+    LOCATION_LONG,
+    STATUS,
+    ROW_NUMBER() OVER (PARTITION BY ID ORDER BY TRY_TO_TIMESTAMP(CREATED_AT) DESC) AS rn
+  FROM DRIVERS_STREAM
+) AS source
+ON target.ID = source.ID
+WHEN MATCHED AND source.rn = 1 THEN
+  UPDATE SET
+    target.FIRST_NAME = source.FIRST_NAME,
+    target.LAST_NAME = source.LAST_NAME,
+    target.EMAIL = source.EMAIL,
+    target.PHONE_NUMBER = source.PHONE_NUMBER,
+    target.DATE_OF_BIRTH = source.DATE_OF_BIRTH,
+    target.CREATED_AT = source.CREATED_AT,
+    target.LOCATION_CITY = source.LOCATION_CITY,
+    target.LOCATION_LAT = source.LOCATION_LAT,
+    target.LOCATION_LONG = source.LOCATION_LONG,
+    target.STATUS = source.STATUS
+WHEN NOT MATCHED AND source.rn = 1 THEN
+  INSERT (ID, FIRST_NAME, LAST_NAME, EMAIL, PHONE_NUMBER, DATE_OF_BIRTH, CREATED_AT, LOCATION_CITY, LOCATION_LAT, LOCATION_LONG, STATUS)
+  VALUES (source.ID, source.FIRST_NAME, source.LAST_NAME, source.EMAIL, source.PHONE_NUMBER, source.DATE_OF_BIRTH, source.CREATED_AT, source.LOCATION_CITY, source.LOCATION_LAT, source.LOCATION_LONG, source.STATUS);
+
+-- Start the task
+ALTER TASK MERGE_DRIVERS_TASK RESUME;
+
+-- deduplicated trips table
+CREATE OR REPLACE TABLE TRIPS (
+    ID VARCHAR(255) NOT NULL,
+    DRIVER_ID VARCHAR(255),
+    RIDER_ID VARCHAR(255),
+    STATUS VARCHAR(50),
+    REQUEST_TIME TIMESTAMP_NTZ(6),
+    ACCEPT_TIME TIMESTAMP_NTZ(6),
+    PICKUP_TIME TIMESTAMP_NTZ(6),
+    DROPOFF_TIME TIMESTAMP_NTZ(6),
+    FARE INTEGER,
+    DISTANCE FLOAT,
+    PICKUP_LAT FLOAT,
+    PICKUP_LONG FLOAT,
+    DROPOFF_LAT FLOAT,
+    DROPOFF_LONG FLOAT,
+    CITY VARCHAR(255),
+    PRIMARY KEY (ID)
+);
+
+-- Create a stream on the TRIPS_STAGE table
+CREATE OR REPLACE STREAM TRIPS_STREAM ON TABLE TRIPS_STAGE;
+
+-- Create a task to merge changes into the TRIPS table
+CREATE OR REPLACE TASK MERGE_TRIPS_TASK
+WAREHOUSE = RIDESHARE_INGEST
+SCHEDULE = '1 minute'
+WHEN
+  SYSTEM$STREAM_HAS_DATA('TRIPS_STREAM')
+AS
+MERGE INTO RIDESHARE_DEMO.PUBLIC.TRIPS AS target
+USING (
+  SELECT 
+    ID,
+    DRIVER_ID,
+    RIDER_ID,
+    STATUS,
+    TRY_TO_TIMESTAMP_NTZ(REQUEST_TIME) AS REQUEST_TIME,
+    TRY_TO_TIMESTAMP_NTZ(ACCEPT_TIME) AS ACCEPT_TIME,
+    TRY_TO_TIMESTAMP_NTZ(PICKUP_TIME) AS PICKUP_TIME,
+    TRY_TO_TIMESTAMP_NTZ(DROPOFF_TIME) AS DROPOFF_TIME,
+    FARE,
+    DISTANCE,
+    PICKUP_LAT,
+    PICKUP_LONG,
+    DROPOFF_LAT,
+    DROPOFF_LONG,
+    CITY,
+    ROW_NUMBER() OVER (PARTITION BY ID ORDER BY TRY_TO_TIMESTAMP_NTZ(RECORD_METADATA:CreateTime::STRING) DESC) AS rn
+  FROM TRIPS_STREAM
+) AS source
+ON target.ID = source.ID
+WHEN MATCHED AND source.rn = 1 THEN
+  UPDATE SET
+    target.DRIVER_ID = source.DRIVER_ID,
+    target.RIDER_ID = source.RIDER_ID,
+    target.STATUS = source.STATUS,
+    target.REQUEST_TIME = source.REQUEST_TIME,
+    target.ACCEPT_TIME = source.ACCEPT_TIME,
+    target.PICKUP_TIME = source.PICKUP_TIME,
+    target.DROPOFF_TIME = source.DROPOFF_TIME,
+    target.FARE = source.FARE,
+    target.DISTANCE = source.DISTANCE,
+    target.PICKUP_LAT = source.PICKUP_LAT,
+    target.PICKUP_LONG = source.PICKUP_LONG,
+    target.DROPOFF_LAT = source.DROPOFF_LAT,
+    target.DROPOFF_LONG = source.DROPOFF_LONG,
+    target.CITY = source.CITY
+WHEN NOT MATCHED AND source.rn = 1 THEN
+  INSERT (ID, DRIVER_ID, RIDER_ID, STATUS, REQUEST_TIME, ACCEPT_TIME, PICKUP_TIME, DROPOFF_TIME, FARE, DISTANCE, PICKUP_LAT, PICKUP_LONG, DROPOFF_LAT, DROPOFF_LONG, CITY)
+  VALUES (source.ID, source.DRIVER_ID, source.RIDER_ID, source.STATUS, source.REQUEST_TIME, source.ACCEPT_TIME, source.PICKUP_TIME, source.DROPOFF_TIME, source.FARE, source.DISTANCE, source.PICKUP_LAT, source.PICKUP_LONG, source.DROPOFF_LAT, source.DROPOFF_LONG, source.CITY);
+
+-- Start the task
+ALTER TASK MERGE_TRIPS_TASK RESUME;
+
+-- verify deduplicated tables  
+SELECT COUNT(*) FROM RIDERS;
+SELECT COUNT(*) FROM DRIVERS;
+SELECT COUNT(*) FROM TRIPS;
+
+-- (optional) ingest trips csv from s3
+-- follow the instructions here: https://docs.snowflake.com/en/user-guide/data-load-s3
+CREATE STORAGE INTEGRATION rideshare_s3_int
+  TYPE = EXTERNAL_STAGE
+  STORAGE_PROVIDER = 'S3'
+  ENABLED = TRUE
+  STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::'
+  STORAGE_ALLOWED_LOCATIONS = ('s3://');
+
+USE ROLE ACCOUNTADMIN;
+GRANT USAGE ON INTEGRATION rideshare_s3_int TO ROLE RIDESHARE_INGEST;
+USE ROLE RIDESHARE_INGEST;
+
+DESC INTEGRATION rideshare_s3_int;
+
+CREATE OR REPLACE STAGE rideshare_s3_stage
+  STORAGE_INTEGRATION = rideshare_s3_int
+  URL = 's3://';
+
+SHOW STAGES;
+
+COPY INTO trips
+  FROM @rideshare_s3_stage
+    FILES = ( 'trips.csv' );
+
+SELECT COUNT(*) FROM trips;
+
+-- create iceberg volume on s3
+-- following the instructions here: https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-external-volume
+CREATE OR REPLACE EXTERNAL VOLUME s3_rideshare_iceberg_volume
+   STORAGE_LOCATIONS = (
+         (
+            NAME = 's3_rideshare_iceberg_volume'
+            STORAGE_PROVIDER = 'S3'
+            STORAGE_BASE_URL = 's3://'
+            STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::'
+            STORAGE_AWS_EXTERNAL_ID = ''
+         )
+    );
+
+DESC EXTERNAL VOLUME s3_rideshare_iceberg_volume;
+
+-- create iceberg trips table
+CREATE OR REPLACE ICEBERG TABLE trips_ice LIKE trips
+CATALOG = 'SNOWFLAKE'
+EXTERNAL_VOLUME = 's3_rideshare_iceberg_volume'
+BASE_LOCATION = 'iceberg';
+
+-- copy trips into iceberg table
+INSERT INTO trips_ice
+SELECT * FROM trips;
+
+SELECT COUNT(*) FROM trips_ice;
+
+-- cleanup query to remove any orphaned trips and reset the riders and drivers tables
+DELETE FROM RIDERS;
+DELETE FROM DRIVERS;
+DELETE FROM TRIPS WHERE status != 'completed';
+
+-- sample queries
+SELECT 'trips' as entity, status, COUNT(*) as count
+    FROM trips
+    GROUP BY status
+    UNION ALL
+    SELECT 'riders' as entity, status, COUNT(*) as count
+    FROM riders
+    GROUP BY status
+    UNION ALL
+    SELECT 'drivers' as entity, status, COUNT(*) as count
+    FROM drivers
+    GROUP BY status
+    ORDER BY entity, status;
+
+-- cleanup demo
+USE ROLE ACCOUNTADMIN;
+DROP WAREHOUSE IF EXISTS RIDESHARE_INGEST;
+DROP USER IF EXISTS RIDESHARE_INGEST;
+DROP ROLE IF EXISTS RIDESHARE_INGEST;
+DROP DATABASE IF EXISTS RIDESHARE_DEMO;
+DROP EXTERNAL VOLUME s3_rideshare_iceberg_volume;

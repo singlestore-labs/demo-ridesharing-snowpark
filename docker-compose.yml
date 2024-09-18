@@ -1,0 +1,171 @@
+name: ridesharing-sim
+services:
+  simulator-0:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 322
+      NUM_DRIVERS: 280
+      CITY: "San Francisco"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
+
+  simulator-1:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 276
+      NUM_DRIVERS: 288
+      CITY: "San Jose"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
+
+  simulator-2:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 60
+      NUM_DRIVERS: 50
+      CITY: "Cupertino"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
+
+  simulator-3:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 100
+      NUM_DRIVERS: 100
+      CITY: "Daly City"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
+
+  simulator-4:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 100
+      NUM_DRIVERS: 100
+      CITY: "Fremont"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
+
+  simulator-5:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 80
+      NUM_DRIVERS: 80
+      CITY: "Hayward"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
+
+  simulator-6:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 40
+      NUM_DRIVERS: 40
+      CITY: "Milpitas"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
+
+  simulator-7:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 80
+      NUM_DRIVERS: 80
+      CITY: "Mountain View"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
+
+  simulator-8:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 100
+      NUM_DRIVERS: 100
+      CITY: "Oakland"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
+
+  simulator-9:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 60
+      NUM_DRIVERS: 60
+      CITY: "Palo Alto"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
+
+  simulator-10:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 80
+      NUM_DRIVERS: 80
+      CITY: "Redwood City"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
+
+  simulator-11:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 40
+      NUM_DRIVERS: 40
+      CITY: "San Bruno"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
+
+  simulator-12:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 80
+      NUM_DRIVERS: 80
+      CITY: "San Leandro"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
+
+  simulator-13:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 60
+      NUM_DRIVERS: 60
+      CITY: "San Mateo"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
+
+  simulator-14:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 70
+      NUM_DRIVERS: 70
+      CITY: "Santa Clara"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
+
+  simulator-15:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 70
+      NUM_DRIVERS: 70
+      CITY: "Sunnyvale"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
+
+  simulator-16:
+    image: ridesharing_simulator:latest
+    environment:
+      NUM_RIDERS: 30
+      NUM_DRIVERS: 30
+      CITY: "Union City"
+      KAFKA_BROKER: $KAFKA_BROKER
+      KAFKA_SASL_USERNAME: $KAFKA_SASL_USERNAME
+      KAFKA_SASL_PASSWORD: $KAFKA_SASL_PASSWORD
