@@ -27,7 +27,7 @@ export default function TotalStatistics() {
   const [latency, setLatency] = useState(0);
 
   useEffect(() => {
-    setDatabaseParam(database === "both" ? "singlestore" : database);
+    setDatabaseParam(database === "both" ? "snowflake" : database);
   }, [database]);
 
   const getTripStats = useCallback(async () => {
