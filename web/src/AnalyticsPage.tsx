@@ -3,12 +3,12 @@ import TotalStatistics from "@/components/analytics/total-statistics";
 import TodayStatistics from "@/components/analytics/today-statistics";
 import TripsHourlyChart from "@/components/analytics/trips-hourly-chart";
 import TripsDailyChart from "@/components/analytics/trips-daily-chart";
-import TripsMinuteChart from "@/components/analytics/trips-minute-chart";
 import WaitTimeDailyChart from "@/components/analytics/wait-time-daily-chart";
 import WaitTimeHourlyChart from "@/components/analytics/wait-time-hourly-chart";
 import WaitTimeMinuteChart from "@/components/analytics/wait-time-minute-chart";
 import { Toolbar } from "@/components/toolbar";
 import Pricing from "@/components/analytics/pricing";
+import TripsSecondChart from "@/components/analytics/trips-second-chart";
 
 const AnalyticsPage = () => {
   return (
@@ -30,7 +30,8 @@ const AnalyticsPage = () => {
           <h4>Trends</h4>
         </div>
         <div className="flex flex-wrap items-center gap-4 px-4 pb-20">
-          <TripsMinuteChart />
+          <TripsSecondChart />
+          {/* <TripsMinuteChart /> */}
           <TripsHourlyChart />
           <TripsDailyChart />
           <WaitTimeMinuteChart />

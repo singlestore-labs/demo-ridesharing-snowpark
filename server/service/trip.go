@@ -419,6 +419,130 @@ func GetDailyTripStatistics(db string, city string) map[string]interface{} {
 	return result
 }
 
+func GetSecondTripCountsLastHour(db, city string, interval int) []map[string]interface{} {
+	var query string
+	var args []interface{}
+
+	if db == "snowflake" {
+		database.SetupSnowflakeQuery()
+		query = `
+			WITH second_counts AS (
+				SELECT 
+					DATE_TRUNC('SECOND', request_time) AS second_interval,
+					COUNT(*) AS trip_count
+				FROM 
+					trips
+				WHERE 
+					request_time >= DATEADD(HOUR, -1, CURRENT_TIMESTAMP())
+					{{ city_filter }}
+				GROUP BY 
+					second_interval
+			)
+			SELECT 
+				TO_CHAR(
+					DATE_TRUNC('SECOND', DATEADD(SECOND, ? * FLOOR(DATEDIFF('SECOND', '1970-01-01', c.second_interval) / ?), '1970-01-01')),
+					'YYYY-MM-DD HH24:MI:SS'
+				) AS interval_start,
+				SUM(c.trip_count) AS trip_count,
+				COALESCE(
+					ROUND(
+						(SUM(c.trip_count) - LAG(SUM(c.trip_count)) OVER (ORDER BY MIN(c.second_interval))) / 
+						NULLIF(LAG(SUM(c.trip_count)) OVER (ORDER BY MIN(c.second_interval)), 0) * 100,
+						2
+					),
+					0
+				) AS percent_change
+			FROM 
+				second_counts c
+			GROUP BY 
+				FLOOR(DATEDIFF('SECOND', '1970-01-01', c.second_interval) / ?)
+			ORDER BY 
+				interval_start;
+		`
+		args = append(args, interval, interval, interval)
+	} else {
+		query = `
+			WITH second_counts AS (
+				SELECT 
+					DATE_FORMAT(request_time, '%Y-%m-%d %H:%i:%s') AS second_interval,
+					COUNT(*) AS trip_count
+				FROM 
+					trips
+				WHERE 
+					request_time >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+					{{ city_filter }}
+				GROUP BY 
+					second_interval
+			)
+			SELECT 
+				DATE_FORMAT(
+					FROM_UNIXTIME(? * FLOOR(UNIX_TIMESTAMP(c.second_interval) / ?)),
+					'%Y-%m-%d %H:%i:%s'
+				) AS interval_start,
+				SUM(c.trip_count) AS trip_count,
+				COALESCE(
+					ROUND(
+						(SUM(c.trip_count) - LAG(SUM(c.trip_count)) OVER (ORDER BY MIN(c.second_interval))) / 
+						NULLIF(LAG(SUM(c.trip_count)) OVER (ORDER BY MIN(c.second_interval)), 0) * 100,
+						2
+					),
+					0
+				) AS percent_change
+			FROM 
+				second_counts c
+			GROUP BY 
+				FLOOR(UNIX_TIMESTAMP(c.second_interval) / ?)
+			ORDER BY 
+				interval_start;
+		`
+		args = append(args, interval, interval, interval)
+	}
+
+	// Replace placeholders based on whether city is provided
+	if city != "" {
+		query = strings.ReplaceAll(query, "{{ city_filter }}", fmt.Sprintf("AND city = '%s'", city))
+	} else {
+		query = strings.ReplaceAll(query, "{{ city_filter }}", "")
+	}
+
+	var results = make([]map[string]interface{}, 0)
+
+	if db == "snowflake" {
+		rows, err := database.SnowflakeDB.Query(query, args...)
+		if err != nil {
+			return nil
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var intervalStart string
+			var tripCount int
+			var percentChange float64
+
+			if err := rows.Scan(&intervalStart, &tripCount, &percentChange); err != nil {
+				return nil
+			}
+
+			result := map[string]interface{}{
+				"interval_start": intervalStart,
+				"trip_count":     tripCount,
+				"percent_change": percentChange,
+			}
+			results = append(results, result)
+		}
+
+		if err = rows.Err(); err != nil {
+			return nil
+		}
+	} else {
+		if err := database.SingleStoreDB.Raw(query, args...).Scan(&results).Error; err != nil {
+			return nil
+		}
+	}
+
+	return results
+}
+
 func GetMinuteTripCountsLastHour(db, city string) []map[string]interface{} {
 	var query string
 	var args []interface{}

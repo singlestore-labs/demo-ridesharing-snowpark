@@ -2,6 +2,7 @@ package api
 
 import (
 	"server/service"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -31,6 +32,21 @@ func GetDailyTripStatistics(c *gin.Context) {
 	db := c.Query("db")
 	city := c.Query("city")
 	c.JSON(200, service.GetDailyTripStatistics(db, city))
+}
+
+func GetSecondTripCountsLastHour(c *gin.Context) {
+	db := c.Query("db")
+	city := c.Query("city")
+	interval := c.Query("interval")
+	if interval == "" {
+		interval = "1"
+	}
+	intervalInt, err := strconv.Atoi(interval)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid interval"})
+		return
+	}
+	c.JSON(200, service.GetSecondTripCountsLastHour(db, city, intervalInt))
 }
 
 func GetMinuteTripCountsLastHour(c *gin.Context) {
