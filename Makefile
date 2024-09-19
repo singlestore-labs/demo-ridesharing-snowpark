@@ -1,8 +1,8 @@
 .PHONY: build start
 
 deploy:
-	chmod +x build.sh
-	./build.sh
+	chmod +x deploy-spcs.sh
+	./deploy-spcs.sh
 
 build:
 	docker build -t ridesharing_simulator:latest --progress=plain -f simulator/Dockerfile simulator
