@@ -1,6 +1,9 @@
 package database
 
-import "time"
+import (
+	"log"
+	"time"
+)
 
 func Initialize() {
 	connectSingleStore()
@@ -10,8 +13,13 @@ func Initialize() {
 
 func KeepAlive() {
 	for {
-		SingleStoreDB.Exec("SELECT 1")
-		SnowflakeDB.Exec("SELECT 1")
+		log.Println("Cleaning up tables...")
+		SingleStoreDB.Exec("DELETE FROM trips WHERE status != 'completed'")
+		SingleStoreDB.Exec("DELETE FROM riders")
+		SingleStoreDB.Exec("DELETE FROM drivers")
+		SnowflakeDB.Exec("DELETE FROM trips WHERE status != 'completed'")
+		SnowflakeDB.Exec("DELETE FROM riders")
+		SnowflakeDB.Exec("DELETE FROM drivers")
 		time.Sleep(time.Hour * 1)
 	}
 }
