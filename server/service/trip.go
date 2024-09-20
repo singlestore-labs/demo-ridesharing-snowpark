@@ -311,80 +311,77 @@ func GetDailyTripStatistics(db string, city string) map[string]interface{} {
 	if db == "snowflake" {
 		database.SetupSnowflakeQuery()
 		query = `
-			WITH current_day AS (
+			WITH trip_metrics AS (
 				SELECT 
-					COUNT(*) as total_trips,
-					AVG(DATEDIFF('second', request_time, dropoff_time)) as avg_duration,
-					AVG(distance) as avg_distance,
-					AVG(DATEDIFF('second', request_time, accept_time)) as avg_wait_time
+					SUM(CASE WHEN request_time >= CURRENT_DATE() AND request_time < DATEADD(day, 1, CURRENT_DATE()) THEN 1 ELSE 0 END) as total_trips,
+					SUM(CASE WHEN request_time >= DATEADD(day, -1, CURRENT_DATE()) AND request_time < CURRENT_DATE() THEN 1 ELSE 0 END) as total_trips_previous_day,
+
+					AVG(CASE WHEN request_time >= CURRENT_DATE() AND request_time < DATEADD(day, 1, CURRENT_DATE()) THEN DATEDIFF('second', request_time, dropoff_time) END) as avg_duration,
+					AVG(CASE WHEN request_time >= DATEADD(day, -1, CURRENT_DATE()) AND request_time < CURRENT_DATE() THEN DATEDIFF('second', request_time, dropoff_time) END) as avg_duration_previous_day,
+
+					AVG(CASE WHEN request_time >= CURRENT_DATE() AND request_time < DATEADD(day, 1, CURRENT_DATE()) THEN distance END) as avg_distance,
+					AVG(CASE WHEN request_time >= DATEADD(day, -1, CURRENT_DATE()) AND request_time < CURRENT_DATE() THEN distance END) as avg_distance_previous_day,
+
+					AVG(CASE WHEN request_time >= CURRENT_DATE() AND request_time < DATEADD(day, 1, CURRENT_DATE()) THEN DATEDIFF('second', request_time, accept_time) END) as avg_wait_time,
+					AVG(CASE WHEN request_time >= DATEADD(day, -1, CURRENT_DATE()) AND request_time < CURRENT_DATE() THEN DATEDIFF('second', request_time, accept_time) END) as avg_wait_time_previous_day
 				FROM trips
 				WHERE status = 'completed'
-					AND DATE(request_time) = CURRENT_DATE()
-					{{ city_filter }}
-			),
-			previous_day AS (
-				SELECT 
-					COUNT(*) as total_trips,
-					AVG(DATEDIFF('second', request_time, dropoff_time)) as avg_duration,
-					AVG(distance) as avg_distance,
-					AVG(DATEDIFF('second', request_time, accept_time)) as avg_wait_time
-				FROM trips
-				WHERE status = 'completed'
-					AND DATE(request_time) = DATEADD(day, -1, CURRENT_DATE())
-					{{ city_filter }}
+				{{ city_filter }}
+				AND request_time >= DATEADD(day, -1, CURRENT_DATE())
 			)
+
 			SELECT 
-				c.total_trips,
-				c.avg_duration,
-				c.avg_distance,
-				c.avg_wait_time,
-				COALESCE((c.total_trips - p.total_trips) / NULLIF(p.total_trips, 0) * 100, 0) as total_trips_change,
-				COALESCE((c.avg_duration - p.avg_duration) / NULLIF(p.avg_duration, 0) * 100, 0) as avg_duration_change,
-				COALESCE((c.avg_distance - p.avg_distance) / NULLIF(p.avg_distance, 0) * 100, 0) as avg_distance_change,
-				COALESCE((c.avg_wait_time - p.avg_wait_time) / NULLIF(p.avg_wait_time, 0) * 100, 0) as avg_wait_time_change
-			FROM current_day c, previous_day p
+				total_trips,
+				avg_duration,
+				avg_distance,
+				avg_wait_time,
+
+				COALESCE((total_trips - total_trips_previous_day) / NULLIF(total_trips_previous_day, 0) * 100, 0) as total_trips_change,
+				COALESCE((avg_duration - avg_duration_previous_day) / NULLIF(avg_duration_previous_day, 0) * 100, 0) as avg_duration_change,
+				COALESCE((avg_distance - avg_distance_previous_day) / NULLIF(avg_distance_previous_day, 0) * 100, 0) as avg_distance_change,
+				COALESCE((avg_wait_time - avg_wait_time_previous_day) / NULLIF(avg_wait_time_previous_day, 0) * 100, 0) as avg_wait_time_change
+			FROM trip_metrics;
 		`
 	} else {
 		query = `
-			WITH current_day AS (
+			WITH trip_metrics AS (
 				SELECT 
-					COUNT(*) as total_trips,
-					AVG(TIMESTAMPDIFF(SECOND, request_time, dropoff_time)) as avg_duration,
-					AVG(distance) as avg_distance,
-					AVG(TIMESTAMPDIFF(SECOND, request_time, accept_time)) as avg_wait_time
+					SUM(CASE WHEN request_time >= CURDATE() AND request_time < CURDATE() + INTERVAL 1 DAY THEN 1 ELSE 0 END) as total_trips,
+					SUM(CASE WHEN request_time >= DATE_SUB(CURDATE(), INTERVAL 1 DAY) AND request_time < CURDATE() THEN 1 ELSE 0 END) as total_trips_previous_day,
+
+					AVG(CASE WHEN request_time >= CURDATE() AND request_time < CURDATE() + INTERVAL 1 DAY THEN TIMESTAMPDIFF(SECOND, request_time, dropoff_time) END) as avg_duration,
+					AVG(CASE WHEN request_time >= DATE_SUB(CURDATE(), INTERVAL 1 DAY) AND request_time < CURDATE() THEN TIMESTAMPDIFF(SECOND, request_time, dropoff_time) END) as avg_duration_previous_day,
+
+					AVG(CASE WHEN request_time >= CURDATE() AND request_time < CURDATE() + INTERVAL 1 DAY THEN distance END) as avg_distance,
+					AVG(CASE WHEN request_time >= DATE_SUB(CURDATE(), INTERVAL 1 DAY) AND request_time < CURDATE() THEN distance END) as avg_distance_previous_day,
+
+					AVG(CASE WHEN request_time >= CURDATE() AND request_time < CURDATE() + INTERVAL 1 DAY THEN TIMESTAMPDIFF(SECOND, request_time, accept_time) END) as avg_wait_time,
+					AVG(CASE WHEN request_time >= DATE_SUB(CURDATE(), INTERVAL 1 DAY) AND request_time < CURDATE() THEN TIMESTAMPDIFF(SECOND, request_time, accept_time) END) as avg_wait_time_previous_day
 				FROM trips
 				WHERE status = 'completed'
-					AND DATE(request_time) = CURDATE()
-					{{ city_filter }}
-			),
-			previous_day AS (
-				SELECT 
-					COUNT(*) as total_trips,
-					AVG(TIMESTAMPDIFF(SECOND, request_time, dropoff_time)) as avg_duration,
-					AVG(distance) as avg_distance,
-					AVG(TIMESTAMPDIFF(SECOND, request_time, accept_time)) as avg_wait_time
-				FROM trips
-				WHERE status = 'completed'
-					AND DATE(request_time) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
-					{{ city_filter }}
+				{{ city_filter }}
+				AND request_time >= DATE_SUB(CURDATE(), INTERVAL 1 DAY)
 			)
+
 			SELECT 
-				c.total_trips,
-				c.avg_duration,
-				c.avg_distance,
-				c.avg_wait_time,
-				COALESCE((c.total_trips - p.total_trips) / NULLIF(p.total_trips, 0) * 100, 0) as total_trips_change,
-				COALESCE((c.avg_duration - p.avg_duration) / NULLIF(p.avg_duration, 0) * 100, 0) as avg_duration_change,
-				COALESCE((c.avg_distance - p.avg_distance) / NULLIF(p.avg_distance, 0) * 100, 0) as avg_distance_change,
-				COALESCE((c.avg_wait_time - p.avg_wait_time) / NULLIF(p.avg_wait_time, 0) * 100, 0) as avg_wait_time_change
-			FROM current_day c, previous_day p
+				total_trips,
+				avg_duration,
+				avg_distance,
+				avg_wait_time,
+
+				COALESCE((total_trips - total_trips_previous_day) / NULLIF(total_trips_previous_day, 0) * 100, 0) as total_trips_change,
+				COALESCE((avg_duration - avg_duration_previous_day) / NULLIF(avg_duration_previous_day, 0) * 100, 0) as avg_duration_change,
+				COALESCE((avg_distance - avg_distance_previous_day) / NULLIF(avg_distance_previous_day, 0) * 100, 0) as avg_distance_change,
+				COALESCE((avg_wait_time - avg_wait_time_previous_day) / NULLIF(avg_wait_time_previous_day, 0) * 100, 0) as avg_wait_time_change
+			FROM trip_metrics;
 		`
 	}
 
 	// Replace placeholders based on whether city is provided
 	if city != "" {
 		query = strings.ReplaceAll(query, "{{ city_filter }}", "AND city = ?")
-		args = append(args, city, city)
+
+		args = append(args, city)
 	} else {
 		query = strings.ReplaceAll(query, "{{ city_filter }}", "")
 	}
