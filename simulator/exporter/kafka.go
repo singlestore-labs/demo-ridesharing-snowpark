@@ -66,7 +66,7 @@ func CreateTopic(topic string) {
 	t := kmsg.NewCreateTopicsRequestTopic()
 	t.Topic = topic
 	t.NumPartitions = 1
-	t.ReplicationFactor = 3
+	t.ReplicationFactor = 1
 	req.Topics = append(req.Topics, t)
 
 	res, err := req.RequestWith(context.Background(), KafkaClient)
