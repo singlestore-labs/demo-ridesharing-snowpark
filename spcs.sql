@@ -25,7 +25,7 @@ CREATE OR REPLACE NETWORK RULE RIDESHARE_DEMO_RULE
   VALUE_LIST= (
     '0.0.0.0:443',
     '0.0.0.0:80',
-    'SOUQODV-SNOWFLAKE_INTEGRATION.snowflakecomputing.com',
+    'SOUQODV-SNOWFLAKE_INTEGRATION.snowflakecomputing.com'
 );
 
 -- Setup external access integration to allow access to the network rule
