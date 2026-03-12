@@ -8,14 +8,14 @@ spec:
       image: /rideshare_demo/public/rideshare_demo_repository/ridesharing_server:spcs
       env:
         PORT: 8000
-        SINGLESTORE_HOST: svc-7d75ca76-d293-40c2-baa0-df5106d9a80f-dml.aws-virginia-5.svc.singlestore.com
+        SINGLESTORE_HOST: [host].svc.singlestore.com
         SINGLESTORE_PORT: 3306
         SINGLESTORE_USERNAME: admin
-        SINGLESTORE_PASSWORD: ubXMJaXuX3ezTsU8yrzz6rVmUJrViqgZ
+        SINGLESTORE_PASSWORD: [password]
         SINGLESTORE_DATABASE: rideshare_demo
-        SNOWFLAKE_ACCOUNT: SOUQODV-SNOWFLAKE_INTEGRATION
+        SNOWFLAKE_ACCOUNT: [snowflakeaccount]
         SNOWFLAKE_USER: RIDESHARE_INGEST
-        SNOWFLAKE_PASSWORD: RIDESHARE_INGEST
+        SNOWFLAKE_PASSWORD: [RIDESHARE_INGESTPASSWORD]
         SNOWFLAKE_WAREHOUSE: RIDESHARE_INGEST
         SNOWFLAKE_DATABASE: RIDESHARE_DEMO
         SNOWFLAKE_SCHEMA: PUBLIC
